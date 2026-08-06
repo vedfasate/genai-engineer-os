@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // src/shared/ui/Avatar.tsx
 
 /**

@@ -81,7 +81,6 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
                         type="radio"
                         id={id}
                         disabled={disabled}
-                        aria-invalid={error || undefined}
                         className={cn("peer sr-only", className)}
                         {...rest}
                     />
