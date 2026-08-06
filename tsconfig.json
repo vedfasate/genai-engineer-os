@@ -24,13 +24,19 @@
         "baseUrl": ".",
         "paths": {
             "@/*": [
-                "./*"
+                "src/*"
             ]
-        }
+        },
+        "plugins": [
+            {
+                "name": "next"
+            }
+        ]
     },
     "include": [
         "next-env.d.ts",
-        "src/**/*"
+        "src/**/*",
+        ".next/types/**/*.ts"
     ],
     "exclude": [
         "node_modules"
