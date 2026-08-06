@@ -1465,29 +1465,50 @@ Every new file must include:
 
 ## 30. Current Project Status
 
+> This section was found stale during File 047 and corrected against
+> the actual repository (git history + filesystem), per the rule that
+> the repository — not this document — is the source of truth. See
+> §37 Session Handoff for the full account of the discrepancy.
+
 ### Current Phase
-Phase 1 — Design System (Design Tokens).
+Phase 2 — UI Foundation.
 
 ### Current Module
-Design Tokens.
+Shared UI primitives (`src/shared/ui/`).
 
 ### Current File
-`src/styles/tokens.ts`
+`src/shared/ui/Checkbox.tsx`
 
 ### Completed %
-Estimated 45%.
+Design token layer (Phase 1) is complete. UI Foundation (Phase 2) has
+6 of an unconfirmed total number of primitives built: `types.ts`,
+`Button.tsx`, `Avatar.tsx`, `Divider.tsx`, `Select.tsx`,
+`Checkbox.tsx`. The total-count denominator is deliberately not
+restated here — see §37's note on file numbering not corresponding to
+verified repo history.
 
 ### Remaining %
-Estimated 55%.
+Not tracked as a percentage — see §30's Completed % note above.
 
 ### Latest Changes
-- Added the full design token layer across `src/styles/`.
-- Refactored `src/styles/spacing.ts` to keep spacing as "space between things" only.
-- Added `src/styles/sizing.ts`, `layout.ts`, `radius.ts`, `shadows.ts`, `motion.ts`, `glass.ts`, `gradients.ts`, `borders.ts`, `opacity.ts`, `durations.ts`, `easing.ts`, `density.ts`, and `tokens.ts`.
-- Updated `src/styles/tokens.ts` to export a single namespaced token object and avoid `export *` collisions.
+- Added `src/shared/ui/Checkbox.tsx`: native `<input type="checkbox">`
+  visually replaced with a styled box, `indeterminate` support via a
+  ref-driven `.indeterminate` DOM property + CSS `peer-indeterminate:`
+  variant (no JS ternary for icon choice), `label`/`description`/
+  `error` props, `forwardRef`. Verified via `tsc --noEmit` and
+  `next build` against the real, freshly re-fetched repo (confirmed
+  no new commits had landed on `origin/main` since the prior session).
+- Continues the color-token correction started in `Select.tsx`: uses
+  `bg-background-surface`, `border-border`, `bg-accent`,
+  `text-text-inverse`, `border-status-danger` — not the flattened,
+  non-resolving names in `Button.tsx`/`Avatar.tsx`.
+- Uses `rounded-xs` for the box corner radius, matching
+  `radius.semantic.checkbox` (`src/styles/radius.ts`) — the token
+  actually defined for this component.
 
 ### Latest Features
-- Design token system spanning colors, typography, spacing, sizing, layout, radius, shadows, glass, gradients, motion, borders, opacity, duration, easing, and density.
+- `Checkbox.tsx` UI Foundation primitive, verified via `tsc --noEmit`
+  and `next build`.
 
 ---
 
@@ -1513,6 +1534,10 @@ This section must be appended with every update.
 | 2026-08-06 | 0.1 | `src/styles/density.ts` | Add density mode tokens | Enable future UI density switching |
 | 2026-08-06 | 0.1 | `src/styles/tokens.ts` | Add design token barrel export | Single import surface for style tokens and Tailwind integration |
 | 2026-08-06 | 0.3 | `MASTER_BLUEPRINT.md` | Add §37 Session Handoff | Enable fresh chat continuation with zero lost context |
+| 2026-08-06 | 0.4 | `src/shared/ui/Select.tsx` | Add File 047 — Select UI Foundation primitive | Native `<select>` with chevron icon, `SelectOption[]` API, error/size/fullWidth support |
+| 2026-08-06 | 0.4 | `MASTER_BLUEPRINT.md` | Correct §30 and §37 against actual repo state (git-verified); document Button/Avatar color-token bug found during inspection | Repository is source of truth; prior status sections had drifted from reality by ~10 files |
+| 2026-08-06 | 0.5 | `src/shared/ui/Checkbox.tsx` | Add File 048 — Checkbox UI Foundation primitive | Native checkbox with indeterminate support, label/description/error props |
+| 2026-08-06 | 0.5 | `MASTER_BLUEPRINT.md` | Update §30/§37 for Checkbox.tsx; re-confirmed no drift vs origin/main before building | Keep status sections synchronized with each verified file |
 
 ---
 
@@ -1662,71 +1687,112 @@ along with this whole file, to continue work with zero lost context.
 Update it at the end of every file/batch — it is the last edit made
 before a response ends, not an afterthought.
 
+> **Correction notice (2026-08-06):** everything below this line was
+> rewritten after this section was found to describe files
+> (`Text.tsx`, `Heading.tsx`, a File-036 history, a Button→Icon→
+> Spinner→... build order) that do not exist in the actual git
+> history. The prior version of this section was internally
+> plausible but fictional — it was never re-verified against the
+> repository after being written. Treat any future Session Handoff
+> content with the same suspicion until it's been checked against
+> `git log` / the filesystem, not just read and trusted.
+
 ### Current Phase
-Phase 2 — UI Foundation (infrastructure complete; Text and Heading built and refactored)
+Phase 2 — UI Foundation.
+
+### Verified Repo State (via `git fetch` + `git log origin/main`, re-checked this session before writing anything)
+`origin/main` still has exactly the same 3 commits as last session —
+no new commits landed. `src/shared/ui/` now contains:
+- `types.ts` — `Size = "sm" | "md" | "lg"`.
+- `Button.tsx`, `Avatar.tsx`, `Divider.tsx` — pre-existing, still have
+  the unpatched color-token bug (see Known Technical Debt).
+- `Select.tsx` — added last session (unpushed to origin at time of
+  writing; exists in the working tree this session was continued in).
+- `Checkbox.tsx` — added this session.
+
+**No** `Text.tsx`, `Heading.tsx`, `Icon.tsx`, `Spinner.tsx`,
+`Badge.tsx`, `Card.tsx`, `Input.tsx`, `Textarea.tsx`, or `Label.tsx`
+exist. `npx tsc --noEmit` and `npm run build` both pass clean as of
+this session (verified, not assumed).
+
+### On File Numbering
+Unchanged from last session's note: the "047"/"048" labels assume a
+much longer prior history than actually exists. Both `Select.tsx` and
+`Checkbox.tsx` were still sound to build because they only depend on
+`cn.ts` and `types.ts`, both real. The *next* numbered file
+("049 Radio.tsx") may or may not have the same property — re-verify
+against the repo, don't assume from the number.
 
 ### Last Completed File
-File 036 — `src/shared/ui/types.ts`, plus the refactor of Files 032–033
-(`Text.tsx`, `Heading.tsx`) to consume it and File 034/035.
+`src/shared/ui/Checkbox.tsx` — native `<input type="checkbox">`,
+custom box via `peer-checked:`/`peer-indeterminate:` CSS variants,
+ref-driven `.indeterminate` property, `label`/`description`/`error`
+props, `forwardRef`. Verified with `tsc --noEmit` and `next build`.
 
 ### Next File To Build
-File 037 — `src/shared/ui/Button.tsx`
-Followed by (per the approved UI Foundation order):
-038 Icon → 039 Spinner → 040 Badge → 041 Avatar → 042 Divider →
-043 Card → 044 Input → Textarea → Select → Checkbox → Switch → Radio →
-Tooltip → Popover → Modal → Toast → Dropdown → Tabs → Accordion →
-Empty State → Skeleton → Progress → Breadcrumb → Command Palette →
-Sidebar → Navbar.
+Per the caller's stated build order, File 049 — `Radio.tsx`. Not yet
+started. Before building it: re-fetch and re-check `src/shared/ui/`
+contents rather than trusting this document, same as this session
+did before writing Checkbox.tsx.
 
 ### Pending Review Items
-None outstanding. Every file through 036 has been explicitly approved.
+`Checkbox.tsx` is awaiting explicit approval before File 049.
 
 ### Known Technical Debt
-- `ThemeSwitcher.tsx` (File 028) still uses inline styles. Deliberately
-  deferred — restyle it with `Button`/`Card`/`cn()` immediately once
-  `Button` exists (see §35, "ThemeSwitcher Restyle").
+- **Color token bug (found this session):** `Button.tsx` and
+  `Avatar.tsx` use color class names (`bg-surface-secondary`,
+  `text-primary`, `text-inverted`, `bg-danger`, `ring-offset-bg`)
+  that don't match any utility `tailwind.config.ts` actually
+  generates from its nested `colors` extension. Tailwind silently
+  drops unrecognized class names rather than erroring, so
+  `npm run build` passes while these render with no color styling in
+  several states. `Select.tsx` uses the correct fully-qualified names
+  (`bg-background-surface`, `text-text-primary`, `border-status-danger`,
+  etc.) and does not copy the bug forward. `Checkbox.tsx` (this
+  session) follows the same corrected convention. Button/Avatar are
+  still NOT patched — flagged for a dedicated follow-up, not fixed
+  inline, since instructions say patch only the file being worked on.
 - `globals.css` CSS variables are manually duplicated from `colors.ts`
-  rather than generated. Deferred until they drift or a third theme is
-  added (see §35, "CSS Variable Build Step").
-- No automated tests exist yet for any token or component file.
-- No `/app/dev/components` or `/app/playground` showcase route exists
-  yet (planned, not urgent — see §09 process notes from UI Foundation
-  discussion).
+  rather than generated (see §35, "CSS Variable Build Step" — still
+  applicable, not yet re-verified against the real `colors.ts`/
+  `globals.css` pair this session).
+- No automated tests exist for any token or component file.
+- No `/app/dev/components` or playground showcase route exists.
+- The prior Session Handoff's claims about `ThemeSwitcher.tsx`
+  needing a restyle once `Button` exists (§35) have NOT been
+  re-verified this session — `Button.tsx` does exist now, so that
+  trigger condition may already be met, but the file itself wasn't
+  inspected here.
 
 ### Required npm Packages
-Not yet installed in this session — install before or alongside
-building any file from 035 onward:
-- `clsx` (used by `src/lib/cn.ts`)
-- `tailwind-merge` (used by `src/lib/cn.ts`)
-
-No other new runtime dependencies introduced since the blueprint's
-original `package.json` dependency list (§05).
+Already present in `package.json` and installed successfully this
+session: `clsx`, `tailwind-merge`, `lucide-react`, plus the full
+dependency list in §05. No new runtime dependency was added for
+`Select.tsx`.
 
 ### Open Decisions Not Yet Implemented
-- **Theme Registry** (§35): generalize beyond `dark`/`light`/`system`
-  to support `highContrast`, `oled`, `sepia`, custom themes. Trigger:
-  first time a third resolved theme is actually needed.
-- **CSS Variable Build Step** (§35): auto-generate `globals.css`
-  variables from `colors.ts` instead of manual duplication. Trigger:
-  drift between the two files, or addition of a third theme.
-- **Tailwind semantic-typography utility classes**: `tailwind.config.ts`
-  currently only extends `fontSize` with the raw `typography.scale`
-  keys (`xs`, `base`, ...), not the semantic ones (`body`, `h2`, ...).
-  `Text`/`Heading` therefore apply typography via inline style from
-  `getTypographyStyle()`, not Tailwind classes. Revisit if inline
-  style becomes a real maintainability problem — not before.
-- **Component maturity promotion**: `Text` and `Heading` are tagged
-  `Experimental` (§34) and should move to `Stable` once each has at
-  least one real feature consumer — track this as components get used,
-  don't promote proactively.
+- **Theme Registry** (§35): unchanged, not re-verified this session.
+- **CSS Variable Build Step** (§35): unchanged, not re-verified this
+  session.
+- **Tailwind semantic-typography utility classes**: the previous
+  handoff's claim that `Text`/`Heading` use inline styles for this
+  reason is fictional — those files don't exist. Whether
+  `tailwind.config.ts`'s `fontSize` extension covers semantic keys
+  (`body`, `h2`, ...) or only raw scale keys (`xs`, `base`, ...)
+  should be re-checked when `Text`/`Heading` are actually built.
+- **Component maturity promotion** (§34): only real candidates today
+  are `Button`, `Avatar`, `Divider`, `Select` — all still
+  `Experimental`, none has a real feature consumer yet.
 
 ### How To Resume In A New Chat
 1. Paste this `MASTER_BLUEPRINT.md` in full.
-2. Say: "Continue GenAI Engineer OS. See §37 Session Handoff for
-   current state. Generate the next file only, then stop for review."
-3. No other context should be needed — if something is missing here,
-   that's a gap in this section to fix going forward, not a reason to
-   reconstruct history from the chat log.
+2. Give the actual GitHub repo URL (or upload the repo/relevant
+   folder) so the assistant can clone and verify state directly —
+   this document's Session Handoff has been wrong before and should
+   not be trusted on its own for file-existence claims.
+3. Say: "Continue GenAI Engineer OS. See §37 Session Handoff, but
+   verify against the real repo before generating anything. Generate
+   the next file only, then stop for review."
 
 ---
 
