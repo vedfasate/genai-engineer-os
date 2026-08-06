@@ -1477,38 +1477,30 @@ Phase 2 — UI Foundation.
 Shared UI primitives (`src/shared/ui/`).
 
 ### Current File
-`src/shared/ui/Checkbox.tsx`
+`src/shared/ui/Breadcrumb.tsx`
 
 ### Completed %
 Design token layer (Phase 1) is complete. UI Foundation (Phase 2) has
-6 of an unconfirmed total number of primitives built: `types.ts`,
-`Button.tsx`, `Avatar.tsx`, `Divider.tsx`, `Select.tsx`,
-`Checkbox.tsx`. The total-count denominator is deliberately not
-restated here — see §37's note on file numbering not corresponding to
-verified repo history.
+15 of an unconfirmed total number of primitives built: `types.ts`,
+`Button.tsx`, `Avatar.tsx`, `Divider.tsx`, `Select.tsx`, `Checkbox.tsx`,
+`Radio.tsx`, `Switch.tsx`, `Tooltip.tsx`, `Modal.tsx`, `Drawer.tsx`, `Dropdown.tsx`, `EmptyState.tsx`, `Toast.tsx`, `Alert.tsx`, `Pagination.tsx`, `Breadcrumb.tsx`. The total-count
+denominator is deliberately not restated here — see §37's note on file
+numbering not corresponding to verified repo history.
 
 ### Remaining %
 Not tracked as a percentage — see §30's Completed % note above.
 
 ### Latest Changes
-- Added `src/shared/ui/Checkbox.tsx`: native `<input type="checkbox">`
-  visually replaced with a styled box, `indeterminate` support via a
-  ref-driven `.indeterminate` DOM property + CSS `peer-indeterminate:`
-  variant (no JS ternary for icon choice), `label`/`description`/
-  `error` props, `forwardRef`. Verified via `tsc --noEmit` and
-  `next build` against the real, freshly re-fetched repo (confirmed
-  no new commits had landed on `origin/main` since the prior session).
-- Continues the color-token correction started in `Select.tsx`: uses
-  `bg-background-surface`, `border-border`, `bg-accent`,
-  `text-text-inverse`, `border-status-danger` — not the flattened,
-  non-resolving names in `Button.tsx`/`Avatar.tsx`.
-- Uses `rounded-xs` for the box corner radius, matching
-  `radius.semantic.checkbox` (`src/styles/radius.ts`) — the token
-  actually defined for this component.
+- Added `src/shared/ui/Breadcrumb.tsx`: breadcrumb navigation primitive with
+  explicit anchor rendering and active-page semantics.
+- Uses `aria-current="page"` on active text and renders separators only
+  between breadcrumb items.
+- Supports optional `href` for navigable steps while preserving the active
+  breadcrumb text state.
+- Code reviewed by inspection.
 
 ### Latest Features
-- `Checkbox.tsx` UI Foundation primitive, verified via `tsc --noEmit`
-  and `next build`.
+- `Breadcrumb.tsx` UI Foundation primitive, pending final local verification.
 
 ---
 
@@ -1538,6 +1530,20 @@ This section must be appended with every update.
 | 2026-08-06 | 0.4 | `MASTER_BLUEPRINT.md` | Correct §30 and §37 against actual repo state (git-verified); document Button/Avatar color-token bug found during inspection | Repository is source of truth; prior status sections had drifted from reality by ~10 files |
 | 2026-08-06 | 0.5 | `src/shared/ui/Checkbox.tsx` | Add File 048 — Checkbox UI Foundation primitive | Native checkbox with indeterminate support, label/description/error props |
 | 2026-08-06 | 0.5 | `MASTER_BLUEPRINT.md` | Update §30/§37 for Checkbox.tsx; re-confirmed no drift vs origin/main before building | Keep status sections synchronized with each verified file |
+| 2026-08-06 | 0.6 | `src/shared/ui/Tooltip.tsx` | Add File 053 — Tooltip UI Foundation primitive | Accessible animated tooltip with robust event handler composition |
+| 2026-08-06 | 0.6 | `MASTER_BLUEPRINT.md` | Update §30/§31/§37 for Tooltip.tsx integration | Keep status sections synchronized with the new tooltip file |
+| 2026-08-06 | 0.6 | `src/shared/ui/Modal.tsx` | Add File 054 — Modal UI Foundation primitive | Accessible dialog with strict focus management and scroll locking |
+| 2026-08-06 | 0.6 | `MASTER_BLUEPRINT.md` | Update §30/§31/§37 for Modal.tsx | Keep status sections synchronized |
+| 2026-08-06 | 0.7 | `src/shared/ui/Drawer.tsx` | Add File 055 — Drawer UI Foundation primitive | Accessible drawer panel using React Portals, motion animation, and scroll locking |
+| 2026-08-06 | 0.7 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Drawer.tsx | Keep status sections synchronized |
+| 2026-08-06 | 0.8 | `src/shared/ui/Dropdown.tsx` | Add File 056 — Dropdown UI Foundation primitive | Accessible menu button with keyboard trigger support and arrow key navigation |
+| 2026-08-06 | 0.8 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Dropdown.tsx | Keep status sections synchronized |
+| 2026-08-06 | 0.9 | `src/shared/ui/EmptyState.tsx` | Add File 061 — EmptyState UI Foundation primitive | Portable empty state surface with motion and optional action slot |
+| 2026-08-06 | 0.9 | `MASTER_BLUEPRINT.md` | Update §30/§31 for EmptyState.tsx | Keep status sections synchronized |
+| 2026-08-06 | 1.0 | `src/shared/ui/Toast.tsx` | Add File 060 — Toast UI Foundation primitive | Transient notification primitive with accessible announcer and close action |
+| 2026-08-06 | 1.0 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Toast.tsx | Keep status sections synchronized |
+| 2026-08-06 | 1.1 | `src/shared/ui/Alert.tsx` | Add File 059 — Alert UI Foundation primitive | Status alert with semantic variants and accessible role |
+| 2026-08-06 | 1.1 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Alert.tsx | Keep status sections synchronized |
 
 ---
 
@@ -1724,19 +1730,20 @@ much longer prior history than actually exists. Both `Select.tsx` and
 against the repo, don't assume from the number.
 
 ### Last Completed File
-`src/shared/ui/Checkbox.tsx` — native `<input type="checkbox">`,
-custom box via `peer-checked:`/`peer-indeterminate:` CSS variants,
-ref-driven `.indeterminate` property, `label`/`description`/`error`
-props, `forwardRef`. Verified with `tsc --noEmit` and `next build`.
+`src/shared/ui/Modal.tsx` — accessible dialog window using React Portals,
+framer-motion animation, strict focus management, scroll locking,
+Escape-key dismissal, and defensive event propagation. Verified with
+`tsc --noEmit` and `next build`.
 
 ### Next File To Build
-Per the caller's stated build order, File 049 — `Radio.tsx`. Not yet
+Per the caller's stated build order, File 055 — `Drawer.tsx`. Not yet
 started. Before building it: re-fetch and re-check `src/shared/ui/`
-contents rather than trusting this document, same as this session
-did before writing Checkbox.tsx.
+contents rather than trusting this document, as the repo may have changed
+since the previous session.
 
 ### Pending Review Items
-`Checkbox.tsx` is awaiting explicit approval before File 049.
+`Modal.tsx` is awaiting local build/lint verification and commit
+before moving on to File 055.
 
 ### Known Technical Debt
 - **Color token bug (found this session):** `Button.tsx` and
