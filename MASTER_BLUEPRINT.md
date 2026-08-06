@@ -1477,13 +1477,13 @@ Phase 2 — UI Foundation.
 Shared UI primitives (`src/shared/ui/`).
 
 ### Current File
-`src/shared/ui/Breadcrumb.tsx`
+`src/shared/ui/Tabs.tsx`
 
 ### Completed %
 Design token layer (Phase 1) is complete. UI Foundation (Phase 2) has
-15 of an unconfirmed total number of primitives built: `types.ts`,
+18 of an unconfirmed total number of primitives built: `types.ts`,
 `Button.tsx`, `Avatar.tsx`, `Divider.tsx`, `Select.tsx`, `Checkbox.tsx`,
-`Radio.tsx`, `Switch.tsx`, `Tooltip.tsx`, `Modal.tsx`, `Drawer.tsx`, `Dropdown.tsx`, `EmptyState.tsx`, `Toast.tsx`, `Alert.tsx`, `Pagination.tsx`, `Breadcrumb.tsx`. The total-count
+`Radio.tsx`, `Switch.tsx`, `Tooltip.tsx`, `Modal.tsx`, `Drawer.tsx`, `Dropdown.tsx`, `EmptyState.tsx`, `Toast.tsx`, `Alert.tsx`, `Pagination.tsx`, `Breadcrumb.tsx`, `Progress.tsx`, `Tabs.tsx`. The total-count
 denominator is deliberately not restated here — see §37's note on file
 numbering not corresponding to verified repo history.
 
@@ -1491,16 +1491,18 @@ numbering not corresponding to verified repo history.
 Not tracked as a percentage — see §30's Completed % note above.
 
 ### Latest Changes
-- Added `src/shared/ui/Breadcrumb.tsx`: breadcrumb navigation primitive with
-  explicit anchor rendering and active-page semantics.
-- Uses `aria-current="page"` on active text and renders separators only
-  between breadcrumb items.
-- Supports optional `href` for navigable steps while preserving the active
-  breadcrumb text state.
+- Added `src/shared/ui/Tabs.tsx`: accessible compound tabs primitive with
+  roving tabindex, arrow-key navigation, and controlled state.
+- Implements `Tabs`, `TabList`, `Tab`, and `TabPanel` as local compound
+  components sharing context internal to this file.
+- Supports horizontal and vertical orientation with ARIA tablist semantics.
+- Code reviewed by inspection.
+- Supports optional percentage text and fully qualified theme token
+  variants for semantic intent.
 - Code reviewed by inspection.
 
 ### Latest Features
-- `Breadcrumb.tsx` UI Foundation primitive, pending final local verification.
+- `Progress.tsx` UI Foundation primitive, pending final local verification.
 
 ---
 
@@ -1544,6 +1546,8 @@ This section must be appended with every update.
 | 2026-08-06 | 1.0 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Toast.tsx | Keep status sections synchronized |
 | 2026-08-06 | 1.1 | `src/shared/ui/Alert.tsx` | Add File 059 — Alert UI Foundation primitive | Status alert with semantic variants and accessible role |
 | 2026-08-06 | 1.1 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Alert.tsx | Keep status sections synchronized |
+| 2026-08-06 | 1.2 | `src/shared/ui/Progress.tsx` | Add File 057 — Progress UI Foundation primitive | Determinate and indeterminate progress bar with ARIA-safe semantics |
+| 2026-08-06 | 1.2 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Progress.tsx | Keep status sections synchronized |
 
 ---
 
