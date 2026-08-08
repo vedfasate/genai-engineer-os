@@ -165,7 +165,7 @@ export const Drawer = ({
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="ml-auto rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-focus focus:ring-offset-2"
+                                            className="ml-auto rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-offset-2"
                                             aria-label="Close drawer"
                                         >
                                             <X className="h-4 w-4 text-text-primary" />

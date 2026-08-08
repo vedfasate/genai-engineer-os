@@ -2,7 +2,8 @@ import '@/styles/globals.css'
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import type { ThemeMode } from '@/types/theme.types'
-import { ThemeProvider } from '@/core/theme/ThemeProvider'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { AppProviders } from '@/providers/AppProviders'
 import { getThemeBootstrapScript } from '@/core/theme/themeUtils'
 import { STORAGE_KEYS } from '@/core/constants/storageKeys'
 
@@ -26,9 +27,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 />
             </head>
             <body>
-                <ThemeProvider defaultMode={DEFAULT_THEME_MODE} storageKey={THEME_STORAGE_KEY}>
-                    {children}
-                </ThemeProvider>
+                <AppProviders>
+                    <AppLayout>{children}</AppLayout>
+                </AppProviders>
             </body>
         </html>
     )

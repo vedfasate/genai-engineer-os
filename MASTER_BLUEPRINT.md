@@ -1471,38 +1471,51 @@ Every new file must include:
 > §37 Session Handoff for the full account of the discrepancy.
 
 ### Current Phase
-Phase 2 — UI Foundation.
+Phase 3 - Application Shell.
 
 ### Current Module
-Shared UI primitives (`src/shared/ui/`).
+App providers, route boundaries, navigation shell, command palette, and dashboard entry.
 
 ### Current File
-`src/shared/ui/Tabs.tsx`
+Integrated shell batch:
+`src/providers/AppProviders.tsx`, `src/providers/AuthProvider.tsx`,
+`src/providers/WorkspaceProvider.tsx`, `registry/navigation.ts`,
+`src/components/layout/AppLayout.tsx`, `src/components/layout/Navbar.tsx`,
+`src/components/layout/Sidebar.tsx`, `src/components/layout/SidebarItem.tsx`,
+`src/components/navigation/CommandPalette.tsx`,
+`src/components/dashboard/DashboardWidgets.tsx`,
+`src/app/dashboard/layout.tsx`, `src/app/dashboard/page.tsx`,
+`src/app/error.tsx`, `src/app/not-found.tsx`, `src/app/loading.tsx`,
+and `src/app/layout.tsx`.
 
 ### Completed %
-Design token layer (Phase 1) is complete. UI Foundation (Phase 2) has
-18 of an unconfirmed total number of primitives built: `types.ts`,
-`Button.tsx`, `Avatar.tsx`, `Divider.tsx`, `Select.tsx`, `Checkbox.tsx`,
-`Radio.tsx`, `Switch.tsx`, `Tooltip.tsx`, `Modal.tsx`, `Drawer.tsx`, `Dropdown.tsx`, `EmptyState.tsx`, `Toast.tsx`, `Alert.tsx`, `Pagination.tsx`, `Breadcrumb.tsx`, `Progress.tsx`, `Tabs.tsx`. The total-count
-denominator is deliberately not restated here — see §37's note on file
-numbering not corresponding to verified repo history.
+Phase 3 shell integration is complete for the current MVP scope.
+`npx tsc --noEmit`, `npm run build`, and `npm run lint` pass locally
+after the integration.
 
 ### Remaining %
-Not tracked as a percentage — see §30's Completed % note above.
+Not tracked as a percentage. Remaining work is feature delivery on top
+of the shell plus known design-token cleanup documented in §37.
 
 ### Latest Changes
-- Added `src/shared/ui/Tabs.tsx`: accessible compound tabs primitive with
-  roving tabindex, arrow-key navigation, and controlled state.
-- Implements `Tabs`, `TabList`, `Tab`, and `TabPanel` as local compound
-  components sharing context internal to this file.
-- Supports horizontal and vertical orientation with ARIA tablist semantics.
-- Code reviewed by inspection.
-- Supports optional percentage text and fully qualified theme token
-  variants for semantic intent.
-- Code reviewed by inspection.
+- Verified local API compatibility for `Dropdown`, `Modal`, `Button`,
+  `Avatar`, `EmptyState`, and `useTheme` before integrating the shell.
+- Added global provider boundaries for theme, auth, and workspace state.
+- Replaced the old navigation list with typed `MAIN_NAVIGATION` and
+  `FOOTER_NAVIGATION` registries.
+- Added application shell components: sidebar, navbar, command palette,
+  and root app layout.
+- Added global route boundaries: loading, not-found, and error states.
+- Added `/dashboard` route layout, page, and MVP dashboard widgets.
+- Wired `src/app/layout.tsx` through `<AppProviders>` and `<AppLayout>`
+  while preserving the existing theme bootstrap script.
+- Replaced confirmed invalid `focus:ring-focus` usages with
+  `focus:ring-border-focus`; replaced dropdown hover token usage with
+  `background-surface-raised`.
+- Verified with `npx tsc --noEmit`, `npm run build`, and `npm run lint`.
 
 ### Latest Features
-- `Progress.tsx` UI Foundation primitive, pending final local verification.
+- Phase 3 Application Shell is now the running application frame.
 
 ---
 
@@ -1548,6 +1561,9 @@ This section must be appended with every update.
 | 2026-08-06 | 1.1 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Alert.tsx | Keep status sections synchronized |
 | 2026-08-06 | 1.2 | `src/shared/ui/Progress.tsx` | Add File 057 — Progress UI Foundation primitive | Determinate and indeterminate progress bar with ARIA-safe semantics |
 | 2026-08-06 | 1.2 | `MASTER_BLUEPRINT.md` | Update §30/§31 for Progress.tsx | Keep status sections synchronized |
+| 2026-08-06 | 1.3 | `src/providers/*`, `src/components/layout/*`, `src/components/navigation/CommandPalette.tsx`, `src/components/dashboard/DashboardWidgets.tsx`, `src/app/dashboard/*`, `src/app/error.tsx`, `src/app/not-found.tsx`, `src/app/loading.tsx`, `src/app/layout.tsx`, `registry/navigation.ts` | Integrate Phase 3 Application Shell | Adds provider boundaries, typed navigation, global shell, command palette MVP, dashboard MVP, and route boundary states |
+| 2026-08-06 | 1.3 | `src/shared/ui/Modal.tsx`, `src/shared/ui/Drawer.tsx`, `src/shared/ui/Toast.tsx`, `src/shared/ui/Dropdown.tsx`, `src/shared/ui/Avatar.tsx`, `src/shared/ui/Radio.tsx` | Warning and token compatibility cleanup | Keeps Avatar `<img>` with local lint suppression, removes invalid radio `aria-invalid`, and replaces confirmed invalid focus/hover utilities |
+| 2026-08-06 | 1.3 | `MASTER_BLUEPRINT.md` | Update §30/§31/§37 for verified Phase 3 integration | Records that `tsc`, `next build`, and `next lint` pass after shell integration |
 
 ---
 
@@ -1697,57 +1713,59 @@ along with this whole file, to continue work with zero lost context.
 Update it at the end of every file/batch — it is the last edit made
 before a response ends, not an afterthought.
 
-> **Correction notice (2026-08-06):** everything below this line was
-> rewritten after this section was found to describe files
-> (`Text.tsx`, `Heading.tsx`, a File-036 history, a Button→Icon→
-> Spinner→... build order) that do not exist in the actual git
-> history. The prior version of this section was internally
-> plausible but fictional — it was never re-verified against the
-> repository after being written. Treat any future Session Handoff
-> content with the same suspicion until it's been checked against
-> `git log` / the filesystem, not just read and trusted.
+> **Correction notice (2026-08-06):** prior versions of this section
+> contained plausible but unverified file-state claims. The repository,
+> local filesystem, and actual command output are the source of truth.
+> Re-verify before making future architecture or build-order decisions.
 
 ### Current Phase
-Phase 2 — UI Foundation.
+Phase 3 - Application Shell.
 
-### Verified Repo State (via `git fetch` + `git log origin/main`, re-checked this session before writing anything)
-`origin/main` still has exactly the same 3 commits as last session —
-no new commits landed. `src/shared/ui/` now contains:
-- `types.ts` — `Size = "sm" | "md" | "lg"`.
-- `Button.tsx`, `Avatar.tsx`, `Divider.tsx` — pre-existing, still have
-  the unpatched color-token bug (see Known Technical Debt).
-- `Select.tsx` — added last session (unpushed to origin at time of
-  writing; exists in the working tree this session was continued in).
-- `Checkbox.tsx` — added this session.
+### Verified Repo State
+The Phase 3 shell is integrated into the running app:
+- `src/app/layout.tsx` preserves the theme bootstrap script and wraps
+  children with `<AppProviders>` and `<AppLayout>`.
+- `src/providers/AppProviders.tsx` wires the existing
+  `src/core/theme/ThemeProvider` plus MVP auth/workspace provider stubs.
+- `registry/navigation.ts` exports typed `MAIN_NAVIGATION` and
+  `FOOTER_NAVIGATION` registries.
+- `src/components/layout/` contains `AppLayout`, `Navbar`, `Sidebar`,
+  and `SidebarItem`.
+- `src/components/navigation/CommandPalette.tsx` provides an MVP command
+  palette that searches navigation only.
+- `src/app/dashboard/` and `src/components/dashboard/DashboardWidgets.tsx`
+  provide the MVP dashboard route.
+- `src/app/loading.tsx`, `src/app/not-found.tsx`, and `src/app/error.tsx`
+  provide global route boundary states.
 
-**No** `Text.tsx`, `Heading.tsx`, `Icon.tsx`, `Spinner.tsx`,
-`Badge.tsx`, `Card.tsx`, `Input.tsx`, `Textarea.tsx`, or `Label.tsx`
-exist. `npx tsc --noEmit` and `npm run build` both pass clean as of
-this session (verified, not assumed).
+### Compatibility Decisions
+- `Dropdown` was verified to support `align` and `items`.
+- `Modal` was verified to support `size` and `hideCloseButton`.
+- `Button`, `Avatar`, and `EmptyState` were verified before use.
+- `useTheme` returns `mode` and `setMode`, not `theme` and `setTheme`;
+  shell code uses the actual local API.
+- `Avatar` intentionally keeps `<img>` and suppresses
+  `@next/next/no-img-element` locally because it is a UI primitive.
+- Native radio inputs no longer receive `aria-invalid`; invalid state is
+  kept on `RadioGroup`.
+- Confirmed invalid `focus:ring-focus` usages were replaced with
+  `focus:ring-border-focus`.
 
-### On File Numbering
-Unchanged from last session's note: the "047"/"048" labels assume a
-much longer prior history than actually exists. Both `Select.tsx` and
-`Checkbox.tsx` were still sound to build because they only depend on
-`cn.ts` and `types.ts`, both real. The *next* numbered file
-("049 Radio.tsx") may or may not have the same property — re-verify
-against the repo, don't assume from the number.
-
-### Last Completed File
-`src/shared/ui/Modal.tsx` — accessible dialog window using React Portals,
-framer-motion animation, strict focus management, scroll locking,
-Escape-key dismissal, and defensive event propagation. Verified with
-`tsc --noEmit` and `next build`.
+### Verification
+The following commands pass after the Phase 3 integration:
+- `npx tsc --noEmit`
+- `npm run build`
+- `npm run lint`
 
 ### Next File To Build
-Per the caller's stated build order, File 055 — `Drawer.tsx`. Not yet
-started. Before building it: re-fetch and re-check `src/shared/ui/`
-contents rather than trusting this document, as the repo may have changed
-since the previous session.
+Phase 4 may begin only after reviewing the integrated shell in the browser.
+Recommended next module: AI Chat, built as a feature plugged into the
+existing app shell rather than as an isolated page.
 
 ### Pending Review Items
-`Modal.tsx` is awaiting local build/lint verification and commit
-before moving on to File 055.
+- Browser smoke test for `/dashboard`, mobile sidebar behavior, theme menu,
+  user dropdown, and command palette.
+- Commit the verified Phase 3 shell integration.
 
 ### Known Technical Debt
 - **Color token bug (found this session):** `Button.tsx` and
@@ -1776,10 +1794,9 @@ before moving on to File 055.
   inspected here.
 
 ### Required npm Packages
-Already present in `package.json` and installed successfully this
-session: `clsx`, `tailwind-merge`, `lucide-react`, plus the full
-dependency list in §05. No new runtime dependency was added for
-`Select.tsx`.
+Already present in `package.json`: `clsx`, `tailwind-merge`,
+`lucide-react`, `framer-motion`, and the full dependency list in §05.
+No new runtime dependency was added for the Phase 3 shell.
 
 ### Open Decisions Not Yet Implemented
 - **Theme Registry** (§35): unchanged, not re-verified this session.

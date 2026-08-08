@@ -58,36 +58,36 @@ const baseStyles = [
     "font-medium select-none whitespace-nowrap",
     "rounded-md border border-transparent",
     "transition-colors duration-fast ease-standard",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent focus-visible:ring-offset-bg",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent focus-visible:ring-offset-background-base",
     "disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed",
 ].join(" ");
 
 const variantStyles: Record<ButtonVariant, string> = {
     primary: cn(
-        "bg-accent text-inverted",
+        "bg-accent text-text-inverse",
         "hover:bg-accent-hover",
         "active:bg-accent-active",
         "shadow-sm"
     ),
     secondary: cn(
-        "bg-surface-secondary text-primary",
-        "hover:bg-surface-secondary-hover",
-        "active:bg-surface-secondary-active"
+        "bg-background-surface-raised text-text-primary",
+        "hover:bg-background-overlay",
+        "active:bg-background-surface"
     ),
     outline: cn(
-        "bg-transparent text-primary border-border",
-        "hover:bg-surface-hover",
-        "active:bg-surface-active"
+        "bg-transparent text-text-primary border-border",
+        "hover:bg-background-surface-raised",
+        "active:bg-background-surface"
     ),
     ghost: cn(
-        "bg-transparent text-primary",
-        "hover:bg-surface-hover",
-        "active:bg-surface-active"
+        "bg-transparent text-text-primary",
+        "hover:bg-background-surface-raised",
+        "active:bg-background-surface"
     ),
     danger: cn(
-        "bg-danger text-inverted",
-        "hover:bg-danger-hover",
-        "active:bg-danger-active",
+        "bg-status-danger text-text-inverse",
+        "hover:bg-status-danger-subtle",
+        "active:bg-status-danger-subtle",
         "shadow-sm"
     ),
 };

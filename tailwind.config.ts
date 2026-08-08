@@ -8,18 +8,17 @@ function colorVar(name: string): string {
 const config: Config = {
     darkMode: ['selector', '[data-theme="dark"]'],
     content: [
-        './src/app/**/*.{ts,tsx}',
-        './src/features/**/*.{ts,tsx}',
-        './src/shared/**/*.{ts,tsx}',
-        './src/widgets/**/*.{ts,tsx}',
-        './src/core/**/*.{ts,tsx}',
+        './src/**/*.{js,ts,jsx,tsx,mdx}',
+        './registry/**/*.{js,ts,jsx,tsx,mdx}',
     ],
     theme: {
         extend: {
             colors: {
                 background: {
+                    DEFAULT: colorVar('background'),
                     base: colorVar('background-base'),
                     surface: colorVar('background-surface'),
+                    'surface-hover': colorVar('background-surface-hover'),
                     'surface-raised': colorVar('background-surface-raised'),
                     overlay: colorVar('background-overlay'),
                 },
@@ -67,7 +66,10 @@ const config: Config = {
             spacing: tokens.spacing.scale,
             borderRadius: tokens.radius.scale,
             boxShadow: tokens.shadows.scale,
-            maxWidth: tokens.layout.container,
+            maxWidth: {
+                ...tokens.layout.container,
+                layout: '1500px',
+            },
             transitionDuration: Object.fromEntries(
                 Object.entries(tokens.duration).map(([key, value]) => [key, `${value * 1000}ms`])
             ),

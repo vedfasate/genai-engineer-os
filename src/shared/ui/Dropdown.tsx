@@ -208,7 +208,7 @@ export const Dropdown = ({
                                 }}
                                 className={cn(
                                     'flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-left transition-colors',
-                                    'focus:outline-none focus:bg-background-surface-hover hover:bg-background-surface-hover',
+                                    'focus:outline-none focus:bg-background-surface-raised hover:bg-background-surface-raised',
                                     item.disabled && 'opacity-50 cursor-not-allowed',
                                     item.danger ? 'text-status-danger hover:text-status-danger' : 'text-text-primary'
                                 )}

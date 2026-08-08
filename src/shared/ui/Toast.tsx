@@ -71,7 +71,7 @@ export const Toast = ({
             <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-focus focus:ring-offset-2"
+                className="shrink-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-offset-2"
                 aria-label="Close notification"
             >
                 <X className="h-4 w-4 text-text-primary" />
