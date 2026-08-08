@@ -1,10 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { loadCareerMetrics, type CareerMetrics } from '@/lib/careerData'
+import { getDefaultCareerMetrics, loadCareerMetrics, type CareerMetrics } from '@/lib/careerData'
 
 export function useCareerMetrics() {
-    const [metrics, setMetrics] = React.useState<CareerMetrics>(() => loadCareerMetrics())
+    const [metrics, setMetrics] = React.useState<CareerMetrics>(() => getDefaultCareerMetrics())
 
     React.useEffect(() => {
         const refresh = () => setMetrics(loadCareerMetrics())

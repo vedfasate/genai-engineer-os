@@ -40,6 +40,32 @@ A professional, feature-first SaaS architecture for an AI engineering productivi
 ## Scripts
 
 - `npm run dev`
+- `npm run dev:clean`
+- `npm run clean`
 - `npm run build`
 - `npm run start`
 - `npm run lint`
+
+## Next.js Dev Cache Recovery
+
+Symptoms:
+
+- Unstyled page
+- `layout.css` 404
+- `vendor-chunks/*.js` ENOENT
+- `entryCSSFiles`
+- React Client Manifest errors
+- `__webpack_modules__[moduleId] is not a function`
+
+Recovery:
+
+1. Stop all Node processes if a dev server is stuck.
+2. Run:
+
+   ```bash
+   npm run dev:clean
+   ```
+
+3. Start exactly one dev server.
+4. Hard refresh the browser with `Ctrl + Shift + R`.
+5. Confirm the referenced `/_next/static/css/...` and `/_next/static/chunks/...` assets return HTTP 200 before debugging application code.

@@ -190,6 +190,21 @@ export function loadCareerMetrics(): CareerMetrics {
     const roadmap = loadRoadmap()
     const events = readJson<CalendarEvent[]>(STORAGE_KEYS.calendar, [])
     const reviews = readJson<DailyReview[]>(STORAGE_KEYS.reviews, [])
+
+    return buildCareerMetrics(tasks, notes, roadmap, events, reviews)
+}
+
+export function getDefaultCareerMetrics(): CareerMetrics {
+    return buildCareerMetrics([], [], CAREER_ROADMAP, [], [])
+}
+
+function buildCareerMetrics(
+    tasks: PlannerTask[],
+    notes: NoteSummary[],
+    roadmap: SkillCategory[],
+    events: CalendarEvent[],
+    reviews: DailyReview[]
+): CareerMetrics {
     const todayKey = today()
     const activeTasks = tasks.filter((task) => !task.archived)
     const completedToday = tasks.filter((task) => task.completed && task.completedAt?.slice(0, 10) === todayKey).length
