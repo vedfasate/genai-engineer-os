@@ -1,11 +1,9 @@
 import {
-    Briefcase,
     CheckSquare,
     FileText,
     LayoutDashboard,
     Map,
-    MessageSquare,
-    Settings,
+    Sparkles,
     type LucideIcon,
 } from 'lucide-react'
 
@@ -18,13 +16,10 @@ export interface NavigationItem {
 
 export const MAIN_NAVIGATION: NavigationItem[] = [
     { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { id: 'chat', label: 'AI Chat', href: '/chat', icon: MessageSquare },
-    { id: 'projects', label: 'Projects', href: '/projects', icon: Briefcase },
-    { id: 'roadmaps', label: 'Roadmaps', href: '/roadmap', icon: Map },
-    { id: 'tasks', label: 'Tasks', href: '/daily', icon: CheckSquare },
-    { id: 'documents', label: 'Documents', href: '/notes', icon: FileText },
+    { id: 'roadmap', label: 'Roadmap', href: '/roadmap', icon: Map },
+    { id: 'planner', label: 'Planner', href: '/planner', icon: CheckSquare },
+    { id: 'notes', label: 'Notes', href: '/notes', icon: FileText },
+    { id: 'chat', label: 'Chat', href: '/chat', icon: Sparkles },
 ]
 
-export const FOOTER_NAVIGATION: NavigationItem[] = [
-    { id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
-]
+export const FOOTER_NAVIGATION: NavigationItem[] = []
