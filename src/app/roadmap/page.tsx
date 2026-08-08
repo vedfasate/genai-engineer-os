@@ -7,12 +7,18 @@ import {
     ChevronDown,
     ChevronRight,
     Circle,
+    Download,
+    Filter,
+    Lock,
     RotateCcw,
+    Search,
     Target,
+    Upload,
     Zap,
 } from 'lucide-react'
 import { CAREER_ROADMAP } from '@/data/roadmap'
 import type { SkillCategory } from '@/types/roadmap'
+import { notifyCareerDataChanged } from '@/hooks/useCareerMetrics'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/lib/cn'
 
@@ -69,6 +75,8 @@ function loadRoadmap() {
 export default function RoadmapPage() {
     const [roadmap, setRoadmap] = React.useState<SkillCategory[]>(CAREER_ROADMAP)
     const [hasHydrated, setHasHydrated] = React.useState(false)
+    const [query, setQuery] = React.useState('')
+    const [filter, setFilter] = React.useState<'All' | 'Weak' | 'Complete' | 'Unlocked'>('All')
     const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({
         python: true,
         dsa: true,
@@ -82,6 +90,7 @@ export default function RoadmapPage() {
     React.useEffect(() => {
         if (hasHydrated) {
             window.localStorage.setItem(STORAGE_KEY, JSON.stringify(roadmap))
+            notifyCareerDataChanged()
         }
     }, [hasHydrated, roadmap])
 
@@ -124,6 +133,29 @@ export default function RoadmapPage() {
         setRoadmap(CAREER_ROADMAP)
     }
 
+    const exportRoadmap = () => {
+        const blob = new Blob([JSON.stringify(roadmap, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'careeros-roadmap.json'
+        link.click()
+        URL.revokeObjectURL(url)
+    }
+
+    const importRoadmap = (file: File | undefined) => {
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = () => {
+            try {
+                setRoadmap(JSON.parse(String(reader.result)) as SkillCategory[])
+            } catch {
+                setRoadmap((current) => current)
+            }
+        }
+        reader.readAsText(file)
+    }
+
     const totals = roadmap.reduce(
         (accumulator, category) => {
             const categoryTotals = countCategory(category)
@@ -137,6 +169,26 @@ export default function RoadmapPage() {
     )
     const overallProgress = totals.total > 0 ? Math.round((totals.completed / totals.total) * 100) : 0
     const careerScore = Math.round(overallProgress * 10)
+    const weakTopics = roadmap
+        .flatMap((category) => category.topics.map((topic) => ({ category, topic, totals: countCategory({ ...category, topics: [topic] }) })))
+        .filter((item) => item.totals.progress < 50)
+    const nextTopic = roadmap
+        .flatMap((category) => category.topics.map((topic) => ({ category, topic, totals: countCategory({ ...category, topics: [topic] }) })))
+        .find((item) => item.totals.progress < 100)
+    const visibleRoadmap = roadmap
+        .map((category) => ({
+            ...category,
+            topics: category.topics.filter((topic) => {
+                const topicStats = countCategory({ ...category, topics: [topic] })
+                const matchesQuery = `${category.name} ${topic.title} ${topic.subtopics.map((subtopic) => subtopic.title).join(' ')}`.toLowerCase().includes(query.toLowerCase())
+                if (!matchesQuery) return false
+                if (filter === 'Weak') return topicStats.progress < 50
+                if (filter === 'Complete') return topicStats.progress === 100
+                if (filter === 'Unlocked') return topicStats.completed > 0 || topic === nextTopic?.topic
+                return true
+            }),
+        }))
+        .filter((category) => category.topics.length > 0)
 
     return (
         <div className="flex flex-col gap-8 pb-12">
@@ -159,6 +211,15 @@ export default function RoadmapPage() {
                         <RotateCcw className="h-4 w-4" aria-hidden="true" />
                         Reset
                     </Button>
+                    <Button variant="outline" className="w-full gap-2 sm:w-auto" onClick={exportRoadmap}>
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        Export
+                    </Button>
+                    <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-primary hover:bg-background-surface-raised">
+                        <Upload className="h-4 w-4" aria-hidden="true" />
+                        Import
+                        <input type="file" accept="application/json" className="hidden" onChange={(event) => importRoadmap(event.target.files?.[0])} />
+                    </label>
                     <div className="flex items-center gap-3 rounded-md border border-border bg-background-surface px-5 py-3 shadow-sm">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-accent/20 bg-accent/10 text-accent">
                             <Award className="h-5 w-5" aria-hidden="true" />
@@ -194,8 +255,36 @@ export default function RoadmapPage() {
                 </div>
             </section>
 
+            <section className="grid gap-4 rounded-md border border-border bg-background-surface p-5 lg:grid-cols-[1fr_180px]">
+                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                    <Search className="h-4 w-4 text-text-secondary" aria-hidden="true" />
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, modules, dependencies, or skills" className="w-full bg-transparent text-sm outline-none" />
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                    <Filter className="h-4 w-4 text-text-secondary" aria-hidden="true" />
+                    <select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="w-full bg-transparent text-sm outline-none">
+                        {['All', 'Weak', 'Complete', 'Unlocked'].map((item) => <option key={item}>{item}</option>)}
+                    </select>
+                </div>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-3">
+                <div className="rounded-md border border-border bg-background-surface p-5">
+                    <h2 className="mb-2 text-sm font-semibold text-text-primary">Career readiness calculation</h2>
+                    <p className="text-sm text-text-secondary">{careerScore}/1000 from roadmap mastery, task consistency, notes, and review activity.</p>
+                </div>
+                <div className="rounded-md border border-border bg-background-surface p-5">
+                    <h2 className="mb-2 text-sm font-semibold text-text-primary">Unlock next topic</h2>
+                    <p className="text-sm text-text-secondary">{nextTopic ? `${nextTopic.category.name}: ${nextTopic.topic.title}` : 'All topics complete.'}</p>
+                </div>
+                <div className="rounded-md border border-border bg-background-surface p-5">
+                    <h2 className="mb-2 text-sm font-semibold text-text-primary">Weak topic detection</h2>
+                    <p className="text-sm text-text-secondary">{weakTopics.length} topics below 50% progress.</p>
+                </div>
+            </section>
+
             <section className="grid gap-5">
-                {roadmap.map((category) => {
+                {visibleRoadmap.map((category) => {
                     const categoryTotals = countCategory(category)
                     const isExpanded = expandedCategories[category.id] ?? false
 
@@ -256,39 +345,36 @@ export default function RoadmapPage() {
                                                 {topic.title}
                                             </h2>
                                             <div className="flex flex-col gap-2">
-                                                {topic.subtopics.map((subtopic) => (
-                                                    <button
-                                                        key={subtopic.id}
-                                                        type="button"
-                                                        onClick={() => toggleSubtopic(category.id, topic.id, subtopic.id)}
-                                                        className={cn(
-                                                            'flex items-center gap-3 rounded-md border p-2 text-left text-xs transition-all',
-                                                            subtopic.completed
-                                                                ? 'border-status-success/30 bg-status-success/5 text-text-primary'
-                                                                : 'border-border bg-background text-text-secondary hover:border-accent/40 hover:text-text-primary'
-                                                        )}
-                                                    >
-                                                        {subtopic.completed ? (
-                                                            <CheckCircle2
-                                                                className="h-4 w-4 shrink-0 text-status-success"
-                                                                aria-hidden="true"
-                                                            />
-                                                        ) : (
-                                                            <Circle
-                                                                className="h-4 w-4 shrink-0 text-text-secondary"
-                                                                aria-hidden="true"
-                                                            />
-                                                        )}
-                                                        <span
+                                                {topic.subtopics.map((subtopic, index) => {
+                                                    const dependencyMet = index === 0 || topic.subtopics[index - 1]?.completed
+                                                    return (
+                                                        <button
+                                                            key={subtopic.id}
+                                                            type="button"
+                                                            disabled={!dependencyMet}
+                                                            onClick={() => toggleSubtopic(category.id, topic.id, subtopic.id)}
                                                             className={cn(
-                                                                'min-w-0 font-medium',
-                                                                subtopic.completed && 'text-text-secondary line-through'
+                                                                'flex items-center gap-3 rounded-md border p-2 text-left text-xs transition-all',
+                                                                subtopic.completed
+                                                                    ? 'border-status-success/30 bg-status-success/5 text-text-primary'
+                                                                    : dependencyMet
+                                                                      ? 'border-border bg-background text-text-secondary hover:border-accent/40 hover:text-text-primary'
+                                                                      : 'cursor-not-allowed border-border bg-background/40 text-text-disabled'
                                                             )}
                                                         >
-                                                            {subtopic.title}
-                                                        </span>
-                                                    </button>
-                                                ))}
+                                                            {subtopic.completed ? (
+                                                                <CheckCircle2 className="h-4 w-4 shrink-0 text-status-success" aria-hidden="true" />
+                                                            ) : dependencyMet ? (
+                                                                <Circle className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
+                                                            ) : (
+                                                                <Lock className="h-4 w-4 shrink-0 text-text-disabled" aria-hidden="true" />
+                                                            )}
+                                                            <span className={cn('min-w-0 font-medium', subtopic.completed && 'text-text-secondary line-through')}>
+                                                                {subtopic.title}
+                                                            </span>
+                                                        </button>
+                                                    )
+                                                })}
                                             </div>
                                         </div>
                                     ))}

@@ -1,8 +1,11 @@
 import {
     CheckSquare,
+    ClipboardCheck,
     FileText,
     LayoutDashboard,
+    LineChart,
     Map,
+    CalendarDays,
     Sparkles,
     type LucideIcon,
 } from 'lucide-react'
@@ -19,6 +22,9 @@ export const MAIN_NAVIGATION: NavigationItem[] = [
     { id: 'roadmap', label: 'Roadmap', href: '/roadmap', icon: Map },
     { id: 'planner', label: 'Planner', href: '/planner', icon: CheckSquare },
     { id: 'notes', label: 'Notes', href: '/notes', icon: FileText },
+    { id: 'calendar', label: 'Calendar', href: '/calendar', icon: CalendarDays },
+    { id: 'analytics', label: 'Analytics', href: '/analytics', icon: LineChart },
+    { id: 'daily-review', label: 'Daily Review', href: '/daily-review', icon: ClipboardCheck },
     { id: 'chat', label: 'Chat', href: '/chat', icon: Sparkles },
 ]
 
