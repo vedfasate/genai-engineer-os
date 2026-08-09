@@ -3,7 +3,13 @@
 import * as React from 'react'
 import { CalendarDays, Clock, Plus } from 'lucide-react'
 import { notifyCareerDataChanged } from '@/hooks/useCareerMetrics'
-import { STORAGE_KEYS, type CalendarEvent } from '@/lib/careerData'
+import {
+    loadCalendarEvents,
+    loadPlannerTasks,
+    saveCalendarEvents,
+    type CalendarEvent,
+    type PlannerTask,
+} from '@/lib/careerData'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/lib/cn'
 
@@ -16,15 +22,6 @@ function createId() {
 
 function today() {
     return new Date().toISOString().slice(0, 10)
-}
-
-function loadEvents() {
-    try {
-        const raw = window.localStorage.getItem(STORAGE_KEYS.calendar)
-        return raw ? (JSON.parse(raw) as CalendarEvent[]) : []
-    } catch {
-        return []
-    }
 }
 
 function expandRecurringEvents(events: CalendarEvent[], days: string[]) {
@@ -49,8 +46,24 @@ function expandRecurringEvents(events: CalendarEvent[], days: string[]) {
     })
 }
 
+function plannerTasksToDeadlineEvents(tasks: PlannerTask[]): CalendarEvent[] {
+    return tasks
+        .filter((task) => !task.archived && !task.completed && task.dueDate)
+        .map((task) => ({
+            id: `planner-deadline-${task.id}`,
+            title: task.title,
+            date: task.dueDate,
+            startTime: '17:00',
+            endTime: '17:30',
+            type: 'Deadline',
+            recurring: task.recurring ?? 'None',
+        }))
+}
+
 export default function CalendarPage() {
     const [events, setEvents] = React.useState<CalendarEvent[]>([])
+    const [plannerTasks, setPlannerTasks] = React.useState<PlannerTask[]>([])
+    const [hasHydrated, setHasHydrated] = React.useState(false)
     const [view, setView] = React.useState<'Month' | 'Week' | 'Day' | 'Agenda'>('Month')
     const [form, setForm] = React.useState({
         title: '',
@@ -61,11 +74,26 @@ export default function CalendarPage() {
         recurring: 'None' as CalendarEvent['recurring'],
     })
 
-    React.useEffect(() => setEvents(loadEvents()), [])
     React.useEffect(() => {
-        window.localStorage.setItem(STORAGE_KEYS.calendar, JSON.stringify(events))
+        const refreshPlannerTasks = () => setPlannerTasks(loadPlannerTasks())
+
+        setEvents(loadCalendarEvents())
+        refreshPlannerTasks()
+        setHasHydrated(true)
+        window.addEventListener('storage', refreshPlannerTasks)
+        window.addEventListener('careeros:data-changed', refreshPlannerTasks)
+
+        return () => {
+            window.removeEventListener('storage', refreshPlannerTasks)
+            window.removeEventListener('careeros:data-changed', refreshPlannerTasks)
+        }
+    }, [])
+
+    React.useEffect(() => {
+        if (!hasHydrated) return
+        saveCalendarEvents(events)
         notifyCareerDataChanged()
-    }, [events])
+    }, [events, hasHydrated])
 
     const addEvent = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -79,7 +107,8 @@ export default function CalendarPage() {
         date.setDate(date.getDate() + index)
         return date.toISOString().slice(0, 10)
     })
-    const visibleEvents = expandRecurringEvents(events, days).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))
+    const plannerDeadlineEvents = plannerTasksToDeadlineEvents(plannerTasks)
+    const visibleEvents = expandRecurringEvents([...events, ...plannerDeadlineEvents], days).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))
 
     return (
         <div className="flex flex-col gap-8 pb-12">

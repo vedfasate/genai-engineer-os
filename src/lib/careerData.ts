@@ -1,12 +1,14 @@
 'use client'
 
 import { CAREER_ROADMAP } from '@/data/roadmap'
-import type { SkillCategory } from '@/types/roadmap'
+import type { SkillCategory, UserRoadmap } from '@/types/roadmap'
 
 export const STORAGE_KEYS = {
     planner: 'careeros.planner.v1',
     legacyTasks: 'careeros.tasks.v1',
     roadmap: 'careeros.career-roadmap.v1',
+    roadmaps: 'careeros.roadmaps.v1',
+    activeRoadmap: 'careeros.active-roadmap.v1',
     notes: 'careeros.notes.v1',
     calendar: 'careeros.calendar.v1',
     reviews: 'careeros.daily-reviews.v1',
@@ -85,6 +87,10 @@ export interface CareerMetrics {
 
 const today = () => new Date().toISOString().slice(0, 10)
 
+function createId(prefix: string) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 function readJson<T>(key: string, fallback: T): T {
     if (typeof window === 'undefined') {
         return fallback
@@ -137,29 +143,111 @@ export function savePlannerTasks(tasks: PlannerTask[]) {
     window.localStorage.setItem(STORAGE_KEYS.planner, JSON.stringify(tasks))
 }
 
-function loadRoadmap(): SkillCategory[] {
-    const saved = readJson<SkillCategory[] | null>(STORAGE_KEYS.roadmap, null)
-    if (!saved) {
-        return CAREER_ROADMAP
+export function loadRoadmap(): SkillCategory[] {
+    return loadActiveRoadmap()?.categories ?? []
+}
+
+export function loadRoadmaps(): UserRoadmap[] {
+    const roadmaps = readJson<UserRoadmap[]>(STORAGE_KEYS.roadmaps, [])
+    if (roadmaps.length > 0) {
+        return roadmaps
     }
 
-    const savedCompletion = new Map<string, boolean>()
-    saved.forEach((category) =>
-        category.topics.forEach((topic) =>
-            topic.subtopics.forEach((subtopic) => savedCompletion.set(subtopic.id, subtopic.completed))
-        )
-    )
+    const legacyRoadmap = readJson<SkillCategory[] | null>(STORAGE_KEYS.roadmap, null)
+    if (!legacyRoadmap || legacyRoadmap.length === 0) {
+        return []
+    }
 
-    return CAREER_ROADMAP.map((category) => ({
-        ...category,
-        topics: category.topics.map((topic) => ({
-            ...topic,
-            subtopics: topic.subtopics.map((subtopic) => ({
-                ...subtopic,
-                completed: savedCompletion.get(subtopic.id) ?? subtopic.completed,
+    const now = new Date().toISOString()
+    return [
+        {
+            id: 'legacy-roadmap',
+            title: 'My Career Roadmap',
+            description: 'Migrated from the original single-roadmap workspace.',
+            createdAt: now,
+            updatedAt: now,
+            categories: legacyRoadmap,
+        },
+    ]
+}
+
+export function saveRoadmaps(roadmaps: UserRoadmap[]) {
+    window.localStorage.setItem(STORAGE_KEYS.roadmaps, JSON.stringify(roadmaps))
+}
+
+export function loadActiveRoadmapId(): string | null {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    return window.localStorage.getItem(STORAGE_KEYS.activeRoadmap)
+}
+
+export function saveActiveRoadmapId(id: string | null) {
+    if (id) {
+        window.localStorage.setItem(STORAGE_KEYS.activeRoadmap, id)
+        return
+    }
+
+    window.localStorage.removeItem(STORAGE_KEYS.activeRoadmap)
+}
+
+export function loadActiveRoadmap(): UserRoadmap | null {
+    const roadmaps = loadRoadmaps()
+    const activeId = loadActiveRoadmapId()
+    return roadmaps.find((roadmap) => roadmap.id === activeId) ?? roadmaps[0] ?? null
+}
+
+export function createRoadmapFromTemplate(title = 'AI Engineer Roadmap'): UserRoadmap {
+    const now = new Date().toISOString()
+    return {
+        id: createId('roadmap'),
+        title,
+        description: 'Editable copy from the built-in template.',
+        createdAt: now,
+        updatedAt: now,
+        categories: CAREER_ROADMAP.map((category) => ({
+            ...category,
+            id: createId('module'),
+            topics: category.topics.map((topic) => ({
+                ...topic,
+                id: createId('topic'),
+                subtopics: topic.subtopics.map((subtopic) => ({
+                    ...subtopic,
+                    id: createId('subtopic'),
+                })),
             })),
         })),
-    }))
+    }
+}
+
+export function saveRoadmap(roadmap: SkillCategory[]) {
+    const roadmaps = loadRoadmaps()
+    const activeId = loadActiveRoadmapId()
+    const activeRoadmap = roadmaps.find((item) => item.id === activeId) ?? roadmaps[0]
+    if (!activeRoadmap) return
+
+    saveRoadmaps(
+        roadmaps.map((item) =>
+            item.id === activeRoadmap.id ? { ...item, categories: roadmap, updatedAt: new Date().toISOString() } : item
+        )
+    )
+}
+
+export function loadCalendarEvents(): CalendarEvent[] {
+    return readJson<CalendarEvent[]>(STORAGE_KEYS.calendar, [])
+}
+
+export function saveCalendarEvents(events: CalendarEvent[]) {
+    window.localStorage.setItem(STORAGE_KEYS.calendar, JSON.stringify(events))
+}
+
+export function loadDailyReviews(): DailyReview[] {
+    return readJson<DailyReview[]>(STORAGE_KEYS.reviews, [])
+}
+
+export function saveDailyReviews(reviews: DailyReview[]) {
+    window.localStorage.setItem(STORAGE_KEYS.reviews, JSON.stringify(reviews))
 }
 
 function roadmapProgress(roadmap: SkillCategory[]) {
@@ -188,14 +276,14 @@ export function loadCareerMetrics(): CareerMetrics {
     const tasks = loadPlannerTasks()
     const notes = readJson<NoteSummary[]>(STORAGE_KEYS.notes, [])
     const roadmap = loadRoadmap()
-    const events = readJson<CalendarEvent[]>(STORAGE_KEYS.calendar, [])
-    const reviews = readJson<DailyReview[]>(STORAGE_KEYS.reviews, [])
+    const events = loadCalendarEvents()
+    const reviews = loadDailyReviews()
 
     return buildCareerMetrics(tasks, notes, roadmap, events, reviews)
 }
 
 export function getDefaultCareerMetrics(): CareerMetrics {
-    return buildCareerMetrics([], [], CAREER_ROADMAP, [], [])
+    return buildCareerMetrics([], [], [], [], [])
 }
 
 function buildCareerMetrics(

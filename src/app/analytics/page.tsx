@@ -12,6 +12,16 @@ export default function AnalyticsPage() {
     })
     const totalStudyHours = metrics.reviews.reduce((total, review) => total + review.studyHours, 0)
     const codingTasks = metrics.tasks.filter((task) => ['Python', 'DSA', 'SQL'].includes(task.category)).length
+    const activityDays = Array.from({ length: 35 }, (_, index) => {
+        const date = new Date()
+        date.setDate(date.getDate() - (34 - index))
+        const key = date.toISOString().slice(0, 10)
+        const completedTasks = metrics.tasks.filter((task) => task.completedAt?.slice(0, 10) === key).length
+        const reviewHours = metrics.reviews.find((review) => review.date === key)?.studyHours ?? 0
+        const intensity = Math.min(1, completedTasks * 0.25 + reviewHours * 0.12)
+
+        return { intensity }
+    })
 
     return (
         <div className="flex flex-col gap-8 pb-12">
@@ -47,8 +57,12 @@ export default function AnalyticsPage() {
                     You have {metrics.pendingTasks} pending tasks, {metrics.notesCount} notes, {metrics.completedToday} tasks completed today, and a {metrics.studyStreak}-day study streak.
                 </p>
                 <div className="mt-5 grid grid-cols-7 gap-2">
-                    {Array.from({ length: 35 }, (_, index) => (
-                        <div key={index} className="aspect-square rounded-sm border border-border bg-accent/10" style={{ opacity: 0.25 + ((index + metrics.studyStreak) % 5) * 0.15 }} />
+                    {activityDays.map((day, index) => (
+                        <div
+                            key={index}
+                            className="aspect-square rounded-sm border border-border bg-accent"
+                            style={{ opacity: day.intensity > 0 ? 0.2 + day.intensity * 0.8 : 0.08 }}
+                        />
                     ))}
                 </div>
             </section>

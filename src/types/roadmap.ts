@@ -16,3 +16,12 @@ export interface SkillCategory {
     targetRole: string
     topics: RoadmapTopic[]
 }
+
+export interface UserRoadmap {
+    id: string
+    title: string
+    description: string
+    createdAt: string
+    updatedAt: string
+    categories: SkillCategory[]
+}

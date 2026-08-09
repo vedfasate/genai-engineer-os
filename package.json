@@ -3,8 +3,9 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "next dev",
+        "dev": "node scripts/clean-next-cache.mjs && next dev",
         "dev:clean": "node scripts/clean-next-cache.mjs && next dev",
+        "dev:fast": "next dev",
         "clean": "node scripts/clean-next-cache.mjs",
         "build": "next build",
         "start": "next start",
@@ -32,6 +33,7 @@
         "recharts": "^2.10.0",
         "remark-gfm": "^4.0.1",
         "tailwind-merge": "^1.14.0",
+        "xlsx": "^0.18.5",
         "zod": "^3.0.0",
         "zustand": "^5.0.0"
     },

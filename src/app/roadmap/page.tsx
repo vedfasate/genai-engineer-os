@@ -1,33 +1,61 @@
 'use client'
 
 import * as React from 'react'
+import * as XLSX from 'xlsx'
 import {
     Award,
     CheckCircle2,
-    ChevronDown,
-    ChevronRight,
     Circle,
-    Download,
-    Filter,
-    Lock,
-    RotateCcw,
-    Search,
-    Target,
-    Upload,
-    Zap,
+    FileSpreadsheet,
+    FolderOpen,
+    Plus,
+    Save,
+    Sparkles,
+    Trash2,
 } from 'lucide-react'
-import { CAREER_ROADMAP } from '@/data/roadmap'
-import type { SkillCategory } from '@/types/roadmap'
-import { notifyCareerDataChanged } from '@/hooks/useCareerMetrics'
+import { notifyCareerDataChanged, useCareerMetrics } from '@/hooks/useCareerMetrics'
+import {
+    createRoadmapFromTemplate,
+    loadActiveRoadmapId,
+    loadRoadmaps,
+    saveActiveRoadmapId,
+    saveRoadmaps,
+} from '@/lib/careerData'
+import type { RoadmapTopic, SkillCategory, SubTopic, UserRoadmap } from '@/types/roadmap'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/lib/cn'
 
-const STORAGE_KEY = 'careeros.career-roadmap.v1'
+function createId(prefix: string) {
+    return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${prefix}-${Date.now()}`
+}
 
-function countCategory(category: SkillCategory) {
-    const subtopics = category.topics.flatMap((topic) => topic.subtopics)
+function createBlankRoadmap(): UserRoadmap {
+    const now = new Date().toISOString()
+    return {
+        id: createId('roadmap'),
+        title: 'Untitled Roadmap',
+        description: 'Custom learning plan.',
+        createdAt: now,
+        updatedAt: now,
+        categories: [],
+    }
+}
+
+function emptyModule(): SkillCategory {
+    return { id: createId('module'), name: 'New Module', targetRole: 'Learning goal', topics: [] }
+}
+
+function emptyTopic(): RoadmapTopic {
+    return { id: createId('topic'), title: 'New Topic', subtopics: [] }
+}
+
+function emptySubtopic(title = 'New Item'): SubTopic {
+    return { id: createId('subtopic'), title, completed: false }
+}
+
+function countRoadmap(categories: SkillCategory[]) {
+    const subtopics = categories.flatMap((category) => category.topics.flatMap((topic) => topic.subtopics))
     const completed = subtopics.filter((subtopic) => subtopic.completed).length
-
     return {
         completed,
         total: subtopics.length,
@@ -35,355 +63,367 @@ function countCategory(category: SkillCategory) {
     }
 }
 
-function loadRoadmap() {
-    if (typeof window === 'undefined') {
-        return CAREER_ROADMAP
+function importJsonRoadmap(text: string): UserRoadmap {
+    const parsed = JSON.parse(text) as Partial<UserRoadmap> | SkillCategory[]
+    const now = new Date().toISOString()
+
+    if (Array.isArray(parsed)) {
+        return {
+            ...createBlankRoadmap(),
+            title: 'Imported Roadmap',
+            createdAt: now,
+            updatedAt: now,
+            categories: parsed,
+        }
     }
 
-    try {
-        const saved = window.localStorage.getItem(STORAGE_KEY)
-        if (!saved) {
-            return CAREER_ROADMAP
+    return {
+        ...createBlankRoadmap(),
+        ...parsed,
+        id: createId('roadmap'),
+        title: parsed.title?.trim() || 'Imported Roadmap',
+        description: parsed.description ?? 'Imported learning plan.',
+        createdAt: now,
+        updatedAt: now,
+        categories: parsed.categories ?? [],
+    }
+}
+
+async function importExcelRoadmap(file: File): Promise<UserRoadmap> {
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+    const rows = workbook.SheetNames.flatMap((sheetName) =>
+        XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], { defval: '' })
+    )
+    const modules = new Map<string, SkillCategory>()
+
+    rows.forEach((row, index) => {
+        const values = Object.values(row).map((value) => String(value).trim()).filter(Boolean)
+        if (values.length === 0) return
+
+        const moduleName = values[0] || `Module ${index + 1}`
+        const topicTitle = values[1] || moduleName
+        const subtopicTitle = values.slice(2).join(' - ') || topicTitle
+
+        if (!modules.has(moduleName)) {
+            modules.set(moduleName, {
+                id: createId('module'),
+                name: moduleName,
+                targetRole: 'Imported curriculum',
+                topics: [],
+            })
         }
 
-        const savedRoadmap = JSON.parse(saved) as SkillCategory[]
-        const savedCompletion = new Map<string, boolean>()
+        const roadmapModule = modules.get(moduleName)!
+        let topic = roadmapModule.topics.find((item) => item.title === topicTitle)
+        if (!topic) {
+            topic = { id: createId('topic'), title: topicTitle, subtopics: [] }
+            roadmapModule.topics.push(topic)
+        }
 
-        savedRoadmap.forEach((category) => {
-            category.topics.forEach((topic) => {
-                topic.subtopics.forEach((subtopic) => {
-                    savedCompletion.set(subtopic.id, subtopic.completed)
-                })
-            })
-        })
+        if (!topic.subtopics.some((item) => item.title === subtopicTitle)) {
+            topic.subtopics.push(emptySubtopic(subtopicTitle))
+        }
+    })
 
-        return CAREER_ROADMAP.map((category) => ({
-            ...category,
-            topics: category.topics.map((topic) => ({
-                ...topic,
-                subtopics: topic.subtopics.map((subtopic) => ({
-                    ...subtopic,
-                    completed: savedCompletion.get(subtopic.id) ?? subtopic.completed,
-                })),
-            })),
-        }))
-    } catch {
-        return CAREER_ROADMAP
+    return {
+        ...createBlankRoadmap(),
+        title: file.name.replace(/\.[^.]+$/, ''),
+        description: 'Imported from Excel.',
+        categories: Array.from(modules.values()),
     }
 }
 
 export default function RoadmapPage() {
-    const [roadmap, setRoadmap] = React.useState<SkillCategory[]>(CAREER_ROADMAP)
+    const metrics = useCareerMetrics()
+    const [roadmaps, setRoadmaps] = React.useState<UserRoadmap[]>([])
+    const [activeId, setActiveId] = React.useState<string | null>(null)
     const [hasHydrated, setHasHydrated] = React.useState(false)
-    const [query, setQuery] = React.useState('')
-    const [filter, setFilter] = React.useState<'All' | 'Weak' | 'Complete' | 'Unlocked'>('All')
-    const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({
-        python: true,
-        dsa: true,
-    })
+    const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
+    const [importError, setImportError] = React.useState('')
+    const activeRoadmap = roadmaps.find((roadmap) => roadmap.id === activeId) ?? roadmaps[0] ?? null
+    const stats = countRoadmap(activeRoadmap?.categories ?? [])
 
     React.useEffect(() => {
-        setRoadmap(loadRoadmap())
+        const loaded = loadRoadmaps()
+        const savedActiveId = loadActiveRoadmapId()
+        setRoadmaps(loaded)
+        setActiveId(savedActiveId ?? loaded[0]?.id ?? null)
         setHasHydrated(true)
     }, [])
 
     React.useEffect(() => {
-        if (hasHydrated) {
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(roadmap))
-            notifyCareerDataChanged()
-        }
-    }, [hasHydrated, roadmap])
+        if (!hasHydrated) return
+        saveRoadmaps(roadmaps)
+        saveActiveRoadmapId(activeId)
+        notifyCareerDataChanged()
+    }, [activeId, hasHydrated, roadmaps])
 
-    const toggleSubtopic = (categoryId: string, topicId: string, subtopicId: string) => {
-        setRoadmap((currentRoadmap) =>
-            currentRoadmap.map((category) => {
-                if (category.id !== categoryId) {
-                    return category
-                }
+    const commitRoadmaps = (nextRoadmaps: UserRoadmap[], nextActiveId = activeId) => {
+        setRoadmaps(nextRoadmaps)
+        setActiveId(nextActiveId)
+    }
 
-                return {
-                    ...category,
-                    topics: category.topics.map((topic) => {
-                        if (topic.id !== topicId) {
-                            return topic
-                        }
+    const addRoadmap = (roadmap: UserRoadmap) => {
+        commitRoadmaps([{ ...roadmap, updatedAt: new Date().toISOString() }, ...roadmaps], roadmap.id)
+    }
 
-                        return {
-                            ...topic,
-                            subtopics: topic.subtopics.map((subtopic) =>
-                                subtopic.id === subtopicId
-                                    ? { ...subtopic, completed: !subtopic.completed }
-                                    : subtopic
-                            ),
-                        }
-                    }),
-                }
-            })
+    const updateActiveRoadmap = (updater: (roadmap: UserRoadmap) => UserRoadmap) => {
+        if (!activeRoadmap) return
+        setRoadmaps((current) =>
+            current.map((roadmap) =>
+                roadmap.id === activeRoadmap.id ? { ...updater(roadmap), updatedAt: new Date().toISOString() } : roadmap
+            )
         )
     }
 
-    const toggleCategory = (categoryId: string) => {
-        setExpandedCategories((current) => ({
-            ...current,
-            [categoryId]: !(current[categoryId] ?? false),
-        }))
+    const deleteRoadmap = (id: string) => {
+        const next = roadmaps.filter((roadmap) => roadmap.id !== id)
+        commitRoadmaps(next, next[0]?.id ?? null)
     }
 
-    const resetRoadmap = () => {
-        setRoadmap(CAREER_ROADMAP)
-    }
-
-    const exportRoadmap = () => {
-        const blob = new Blob([JSON.stringify(roadmap, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'careeros-roadmap.json'
-        link.click()
-        URL.revokeObjectURL(url)
-    }
-
-    const importRoadmap = (file: File | undefined) => {
+    const handleImport = async (file: File | undefined) => {
         if (!file) return
-        const reader = new FileReader()
-        reader.onload = () => {
-            try {
-                setRoadmap(JSON.parse(String(reader.result)) as SkillCategory[])
-            } catch {
-                setRoadmap((current) => current)
+        setImportError('')
+        try {
+            if (file.name.endsWith('.json')) {
+                addRoadmap(importJsonRoadmap(await file.text()))
+                return
             }
+
+            addRoadmap(await importExcelRoadmap(file))
+        } catch {
+            setImportError('Import failed. Use a valid JSON, XLS, or XLSX roadmap file.')
         }
-        reader.readAsText(file)
     }
-
-    const totals = roadmap.reduce(
-        (accumulator, category) => {
-            const categoryTotals = countCategory(category)
-
-            return {
-                completed: accumulator.completed + categoryTotals.completed,
-                total: accumulator.total + categoryTotals.total,
-            }
-        },
-        { completed: 0, total: 0 }
-    )
-    const overallProgress = totals.total > 0 ? Math.round((totals.completed / totals.total) * 100) : 0
-    const careerScore = Math.round(overallProgress * 10)
-    const weakTopics = roadmap
-        .flatMap((category) => category.topics.map((topic) => ({ category, topic, totals: countCategory({ ...category, topics: [topic] }) })))
-        .filter((item) => item.totals.progress < 50)
-    const nextTopic = roadmap
-        .flatMap((category) => category.topics.map((topic) => ({ category, topic, totals: countCategory({ ...category, topics: [topic] }) })))
-        .find((item) => item.totals.progress < 100)
-    const visibleRoadmap = roadmap
-        .map((category) => ({
-            ...category,
-            topics: category.topics.filter((topic) => {
-                const topicStats = countCategory({ ...category, topics: [topic] })
-                const matchesQuery = `${category.name} ${topic.title} ${topic.subtopics.map((subtopic) => subtopic.title).join(' ')}`.toLowerCase().includes(query.toLowerCase())
-                if (!matchesQuery) return false
-                if (filter === 'Weak') return topicStats.progress < 50
-                if (filter === 'Complete') return topicStats.progress === 100
-                if (filter === 'Unlocked') return topicStats.completed > 0 || topic === nextTopic?.topic
-                return true
-            }),
-        }))
-        .filter((category) => category.topics.length > 0)
 
     return (
         <div className="flex flex-col gap-8 pb-12">
-            <div className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
+            <header className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
-                            <Target className="h-3 w-3" aria-hidden="true" />
-                            Target: Rs 15+ LPA role
-                        </span>
-                        <span className="text-xs text-text-secondary">Industry skill matrix</span>
+                    <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+                        <FolderOpen className="h-3 w-3" aria-hidden="true" />
+                        Roadmap Manager
                     </div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">
-                        Career Readiness Roadmap
-                    </h1>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">My Roadmaps</h1>
                 </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Button variant="outline" className="w-full gap-2 sm:w-auto" onClick={resetRoadmap}>
-                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                        Reset
+                <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" className="gap-2" onClick={() => addRoadmap(createBlankRoadmap())}>
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Blank
                     </Button>
-                    <Button variant="outline" className="w-full gap-2 sm:w-auto" onClick={exportRoadmap}>
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                        Export
+                    <Button type="button" variant="outline" className="gap-2" onClick={() => addRoadmap(createRoadmapFromTemplate())}>
+                        <Sparkles className="h-4 w-4" aria-hidden="true" />
+                        Use Template
                     </Button>
                     <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-primary hover:bg-background-surface-raised">
-                        <Upload className="h-4 w-4" aria-hidden="true" />
+                        <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
                         Import
-                        <input type="file" accept="application/json" className="hidden" onChange={(event) => importRoadmap(event.target.files?.[0])} />
+                        <input type="file" accept=".json,.xls,.xlsx" className="hidden" onChange={(event) => handleImport(event.target.files?.[0])} />
                     </label>
-                    <div className="flex items-center gap-3 rounded-md border border-border bg-background-surface px-5 py-3 shadow-sm">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-accent/20 bg-accent/10 text-accent">
-                            <Award className="h-5 w-5" aria-hidden="true" />
-                        </div>
-                        <div>
-                            <div className="text-xs font-medium uppercase text-text-secondary">Career score</div>
-                            <div className="font-mono text-xl font-extrabold text-text-primary">
-                                {careerScore}
-                                <span className="text-xs font-normal text-text-secondary"> / 1000</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-            </div>
+            </header>
 
-            <section className="rounded-md border border-border bg-background-surface p-5 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-4">
-                    <span className="text-sm font-semibold text-text-primary">Overall skill mastery</span>
-                    <span className="font-mono text-sm font-bold text-accent">{overallProgress}% complete</span>
-                </div>
-                <div
-                    className="h-3 w-full overflow-hidden rounded-full border border-border bg-background p-0.5"
-                    role="progressbar"
-                    aria-label="Career readiness progress"
-                    aria-valuenow={overallProgress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                >
-                    <div
-                        className="h-full rounded-full bg-accent transition-all duration-500"
-                        style={{ width: `${overallProgress}%` }}
-                    />
-                </div>
-            </section>
+            {importError && <div className="rounded-md border border-status-danger/30 bg-status-danger/10 px-4 py-3 text-sm text-status-danger">{importError}</div>}
 
-            <section className="grid gap-4 rounded-md border border-border bg-background-surface p-5 lg:grid-cols-[1fr_180px]">
-                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
-                    <Search className="h-4 w-4 text-text-secondary" aria-hidden="true" />
-                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, modules, dependencies, or skills" className="w-full bg-transparent text-sm outline-none" />
-                </div>
-                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
-                    <Filter className="h-4 w-4 text-text-secondary" aria-hidden="true" />
-                    <select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="w-full bg-transparent text-sm outline-none">
-                        {['All', 'Weak', 'Complete', 'Unlocked'].map((item) => <option key={item}>{item}</option>)}
-                    </select>
-                </div>
-            </section>
-
-            <section className="grid gap-5 lg:grid-cols-3">
-                <div className="rounded-md border border-border bg-background-surface p-5">
-                    <h2 className="mb-2 text-sm font-semibold text-text-primary">Career readiness calculation</h2>
-                    <p className="text-sm text-text-secondary">{careerScore}/1000 from roadmap mastery, task consistency, notes, and review activity.</p>
-                </div>
-                <div className="rounded-md border border-border bg-background-surface p-5">
-                    <h2 className="mb-2 text-sm font-semibold text-text-primary">Unlock next topic</h2>
-                    <p className="text-sm text-text-secondary">{nextTopic ? `${nextTopic.category.name}: ${nextTopic.topic.title}` : 'All topics complete.'}</p>
-                </div>
-                <div className="rounded-md border border-border bg-background-surface p-5">
-                    <h2 className="mb-2 text-sm font-semibold text-text-primary">Weak topic detection</h2>
-                    <p className="text-sm text-text-secondary">{weakTopics.length} topics below 50% progress.</p>
-                </div>
-            </section>
-
-            <section className="grid gap-5">
-                {visibleRoadmap.map((category) => {
-                    const categoryTotals = countCategory(category)
-                    const isExpanded = expandedCategories[category.id] ?? false
-
-                    return (
-                        <article
-                            key={category.id}
-                            className="overflow-hidden rounded-md border border-border bg-background-surface shadow-sm"
-                        >
-                            <button
-                                type="button"
-                                onClick={() => toggleCategory(category.id)}
-                                className="flex w-full flex-col gap-4 p-5 text-left transition-colors hover:bg-background-surface-raised sm:flex-row sm:items-center sm:justify-between"
-                                aria-expanded={isExpanded}
-                            >
-                                <span className="flex min-w-0 items-center gap-4">
-                                    <span className="text-text-secondary">
-                                        {isExpanded ? (
-                                            <ChevronDown className="h-5 w-5" aria-hidden="true" />
-                                        ) : (
-                                            <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                                        )}
-                                    </span>
-                                    <span className="min-w-0">
-                                        <span className="flex flex-wrap items-center gap-3">
-                                            <span className="text-lg font-bold text-text-primary">{category.name}</span>
-                                            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs font-medium text-text-secondary">
-                                                {categoryTotals.completed}/{categoryTotals.total} completed
-                                            </span>
-                                        </span>
-                                        <span className="mt-0.5 block text-xs text-text-secondary">
-                                            {category.targetRole}
-                                        </span>
-                                    </span>
-                                </span>
-
-                                <span className="flex w-full items-center gap-4 sm:w-48">
-                                    <span className="h-2 w-full overflow-hidden rounded-full border border-border bg-background">
-                                        <span
-                                            className="block h-full bg-accent transition-all duration-300"
-                                            style={{ width: `${categoryTotals.progress}%` }}
-                                        />
-                                    </span>
-                                    <span className="w-10 text-right font-mono text-xs font-semibold text-text-primary">
-                                        {categoryTotals.progress}%
-                                    </span>
-                                </span>
-                            </button>
-
-                            {isExpanded && (
-                                <div className="grid gap-4 border-t border-border bg-background/50 p-5 sm:grid-cols-2">
-                                    {category.topics.map((topic) => (
-                                        <div
-                                            key={topic.id}
-                                            className="flex flex-col gap-3 rounded-md border border-border bg-background-surface p-4"
-                                        >
-                                            <h2 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                                <Zap className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                                                {topic.title}
-                                            </h2>
-                                            <div className="flex flex-col gap-2">
-                                                {topic.subtopics.map((subtopic, index) => {
-                                                    const dependencyMet = index === 0 || topic.subtopics[index - 1]?.completed
-                                                    return (
-                                                        <button
-                                                            key={subtopic.id}
-                                                            type="button"
-                                                            disabled={!dependencyMet}
-                                                            onClick={() => toggleSubtopic(category.id, topic.id, subtopic.id)}
-                                                            className={cn(
-                                                                'flex items-center gap-3 rounded-md border p-2 text-left text-xs transition-all',
-                                                                subtopic.completed
-                                                                    ? 'border-status-success/30 bg-status-success/5 text-text-primary'
-                                                                    : dependencyMet
-                                                                      ? 'border-border bg-background text-text-secondary hover:border-accent/40 hover:text-text-primary'
-                                                                      : 'cursor-not-allowed border-border bg-background/40 text-text-disabled'
-                                                            )}
-                                                        >
-                                                            {subtopic.completed ? (
-                                                                <CheckCircle2 className="h-4 w-4 shrink-0 text-status-success" aria-hidden="true" />
-                                                            ) : dependencyMet ? (
-                                                                <Circle className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
-                                                            ) : (
-                                                                <Lock className="h-4 w-4 shrink-0 text-text-disabled" aria-hidden="true" />
-                                                            )}
-                                                            <span className={cn('min-w-0 font-medium', subtopic.completed && 'text-text-secondary line-through')}>
-                                                                {subtopic.title}
-                                                            </span>
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
+            {roadmaps.length === 0 ? (
+                <section className="rounded-md border border-border bg-background-surface p-8">
+                    <h2 className="text-lg font-bold text-text-primary">No roadmap yet</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
+                        Create a blank roadmap, copy the built-in template, or import your BIA Excel file. Imported roadmaps become your editable copy.
+                    </p>
+                </section>
+            ) : (
+                <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
+                    <aside className="grid content-start gap-3">
+                        {roadmaps.map((roadmap) => {
+                            const roadmapStats = countRoadmap(roadmap.categories)
+                            const isActive = roadmap.id === activeRoadmap?.id
+                            return (
+                                <button
+                                    key={roadmap.id}
+                                    type="button"
+                                    onClick={() => setActiveId(roadmap.id)}
+                                    className={cn(
+                                        'rounded-md border bg-background-surface p-4 text-left transition-colors hover:border-accent/40',
+                                        isActive ? 'border-accent/60' : 'border-border'
+                                    )}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div className="font-semibold text-text-primary">{roadmap.title}</div>
+                                            <div className="mt-1 text-xs text-text-secondary">{roadmapStats.progress}% complete</div>
                                         </div>
-                                    ))}
+                                        <span className="text-xs text-text-secondary">{roadmapStats.completed}/{roadmapStats.total}</span>
+                                    </div>
+                                </button>
+                            )
+                        })}
+                    </aside>
+
+                    {activeRoadmap && (
+                        <main className="flex flex-col gap-5">
+                            <section className="rounded-md border border-border bg-background-surface p-5">
+                                <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+                                    <div className="grid gap-3">
+                                        <input
+                                            value={activeRoadmap.title}
+                                            onChange={(event) => updateActiveRoadmap((roadmap) => ({ ...roadmap, title: event.target.value }))}
+                                            className="rounded-md border border-border bg-background px-3 py-2 text-xl font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent/50"
+                                        />
+                                        <input
+                                            value={activeRoadmap.description}
+                                            onChange={(event) => updateActiveRoadmap((roadmap) => ({ ...roadmap, description: event.target.value }))}
+                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-text-secondary outline-none focus:ring-2 focus:ring-accent/50"
+                                        />
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 lg:justify-end">
+                                        <Button type="button" variant="outline" className="gap-2" onClick={() => updateActiveRoadmap((roadmap) => ({ ...roadmap, categories: [...roadmap.categories, emptyModule()] }))}>
+                                            <Plus className="h-4 w-4" aria-hidden="true" />
+                                            Module
+                                        </Button>
+                                        <Button type="button" variant="outline" className="gap-2" onClick={() => deleteRoadmap(activeRoadmap.id)}>
+                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                            Delete
+                                        </Button>
+                                    </div>
                                 </div>
+                                <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                                    <Metric icon={<Award className="h-4 w-4" />} label="Career Score" value={`${metrics.careerScore}/1000`} />
+                                    <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Roadmap Progress" value={`${stats.progress}%`} />
+                                    <Metric icon={<Save className="h-4 w-4" />} label="Items" value={`${stats.completed}/${stats.total}`} />
+                                </div>
+                            </section>
+
+                            {activeRoadmap.categories.length === 0 ? (
+                                <section className="rounded-md border border-border bg-background-surface p-6">
+                                    <h2 className="font-semibold text-text-primary">This roadmap is blank</h2>
+                                    <p className="mt-2 text-sm text-text-secondary">Add a module to start building your own structure.</p>
+                                </section>
+                            ) : (
+                                <section className="grid gap-4">
+                                    {activeRoadmap.categories.map((category) => (
+                                        <RoadmapModule
+                                            key={category.id}
+                                            category={category}
+                                            expanded={expanded[category.id] ?? true}
+                                            onToggleExpanded={() => setExpanded((current) => ({ ...current, [category.id]: !(current[category.id] ?? true) }))}
+                                            onChange={(nextCategory) =>
+                                                updateActiveRoadmap((roadmap) => ({
+                                                    ...roadmap,
+                                                    categories: roadmap.categories.map((item) => (item.id === category.id ? nextCategory : item)),
+                                                }))
+                                            }
+                                            onDelete={() =>
+                                                updateActiveRoadmap((roadmap) => ({
+                                                    ...roadmap,
+                                                    categories: roadmap.categories.filter((item) => item.id !== category.id),
+                                                }))
+                                            }
+                                        />
+                                    ))}
+                                </section>
                             )}
-                        </article>
-                    )
-                })}
-            </section>
+                        </main>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+    return (
+        <div className="rounded-md border border-border bg-background p-4">
+            <div className="mb-3 text-accent">{icon}</div>
+            <div className="text-xs uppercase text-text-secondary">{label}</div>
+            <div className="mt-1 text-xl font-bold text-text-primary">{value}</div>
+        </div>
+    )
+}
+
+function RoadmapModule({
+    category,
+    expanded,
+    onToggleExpanded,
+    onChange,
+    onDelete,
+}: {
+    category: SkillCategory
+    expanded: boolean
+    onToggleExpanded: () => void
+    onChange: (category: SkillCategory) => void
+    onDelete: () => void
+}) {
+    return (
+        <article className="rounded-md border border-border bg-background-surface p-4">
+            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto_auto]">
+                <input value={category.name} onChange={(event) => onChange({ ...category, name: event.target.value })} className="rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-text-primary" />
+                <input value={category.targetRole} onChange={(event) => onChange({ ...category, targetRole: event.target.value })} className="rounded-md border border-border bg-background px-3 py-2 text-sm text-text-secondary" />
+                <Button type="button" variant="outline" onClick={() => onChange({ ...category, topics: [...category.topics, emptyTopic()] })}>Add Topic</Button>
+                <Button type="button" variant="outline" onClick={onDelete}>Delete</Button>
+            </div>
+            <button type="button" onClick={onToggleExpanded} className="mt-3 text-xs font-medium text-accent">
+                {expanded ? 'Hide topics' : 'Show topics'}
+            </button>
+            {expanded && (
+                <div className="mt-4 grid gap-3">
+                    {category.topics.map((topic) => (
+                        <RoadmapTopicEditor
+                            key={topic.id}
+                            topic={topic}
+                            onChange={(nextTopic) => onChange({ ...category, topics: category.topics.map((item) => (item.id === topic.id ? nextTopic : item)) })}
+                            onDelete={() => onChange({ ...category, topics: category.topics.filter((item) => item.id !== topic.id) })}
+                        />
+                    ))}
+                </div>
+            )}
+        </article>
+    )
+}
+
+function RoadmapTopicEditor({
+    topic,
+    onChange,
+    onDelete,
+}: {
+    topic: RoadmapTopic
+    onChange: (topic: RoadmapTopic) => void
+    onDelete: () => void
+}) {
+    return (
+        <div className="rounded-md border border-border bg-background p-3">
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                <input value={topic.title} onChange={(event) => onChange({ ...topic, title: event.target.value })} className="rounded-md border border-border bg-background-surface px-3 py-2 text-sm font-medium text-text-primary" />
+                <Button type="button" variant="outline" onClick={() => onChange({ ...topic, subtopics: [...topic.subtopics, emptySubtopic()] })}>Add Item</Button>
+                <Button type="button" variant="outline" onClick={onDelete}>Delete</Button>
+            </div>
+            <div className="mt-3 grid gap-2">
+                {topic.subtopics.map((subtopic) => (
+                    <div key={subtopic.id} className="grid gap-2 sm:grid-cols-[auto_1fr_auto]">
+                        <button
+                            type="button"
+                            onClick={() => onChange({ ...topic, subtopics: topic.subtopics.map((item) => (item.id === subtopic.id ? { ...item, completed: !item.completed } : item)) })}
+                            className="rounded-md border border-border p-2 text-text-secondary hover:text-accent"
+                            aria-label="Toggle completion"
+                        >
+                            {subtopic.completed ? <CheckCircle2 className="h-4 w-4 text-status-success" /> : <Circle className="h-4 w-4" />}
+                        </button>
+                        <input
+                            value={subtopic.title}
+                            onChange={(event) => onChange({ ...topic, subtopics: topic.subtopics.map((item) => (item.id === subtopic.id ? { ...item, title: event.target.value } : item)) })}
+                            className={cn('rounded-md border border-border bg-background-surface px-3 py-2 text-sm text-text-primary', subtopic.completed && 'text-text-secondary line-through')}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => onChange({ ...topic, subtopics: topic.subtopics.filter((item) => item.id !== subtopic.id) })}
+                            className="rounded-md border border-border p-2 text-text-secondary hover:text-status-danger"
+                            aria-label="Delete item"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }

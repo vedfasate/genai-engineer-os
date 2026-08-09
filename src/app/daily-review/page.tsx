@@ -4,7 +4,7 @@ import * as React from 'react'
 import { ClipboardCheck, Save } from 'lucide-react'
 import { notifyCareerDataChanged } from '@/hooks/useCareerMetrics'
 import { useCareerMetrics } from '@/hooks/useCareerMetrics'
-import { STORAGE_KEYS, type DailyReview } from '@/lib/careerData'
+import { loadDailyReviews, saveDailyReviews, type DailyReview } from '@/lib/careerData'
 import { Button } from '@/shared/ui/Button'
 
 function today() {
@@ -18,6 +18,7 @@ function createId() {
 export default function DailyReviewPage() {
     const metrics = useCareerMetrics()
     const [reviews, setReviews] = React.useState<DailyReview[]>([])
+    const [hasHydrated, setHasHydrated] = React.useState(false)
     const [form, setForm] = React.useState<Omit<DailyReview, 'id'>>({
         date: today(),
         achievements: '',
@@ -30,22 +31,21 @@ export default function DailyReviewPage() {
     })
 
     React.useEffect(() => {
-        try {
-            const raw = window.localStorage.getItem(STORAGE_KEYS.reviews)
-            setReviews(raw ? (JSON.parse(raw) as DailyReview[]) : [])
-        } catch {
-            setReviews([])
-        }
+        const loadedReviews = loadDailyReviews()
+        setReviews(loadedReviews)
+        setHasHydrated(true)
     }, [])
 
     React.useEffect(() => {
-        window.localStorage.setItem(STORAGE_KEYS.reviews, JSON.stringify(reviews))
+        if (!hasHydrated) return
+        saveDailyReviews(reviews)
         notifyCareerDataChanged()
-    }, [reviews])
+    }, [reviews, hasHydrated])
 
     React.useEffect(() => {
         const todayKey = today()
-        const completedToday = metrics.tasks
+        const completedTodayTasks = metrics.tasks.filter((task) => task.completedAt?.slice(0, 10) === todayKey)
+        const completedToday = completedTodayTasks
             .filter((task) => task.completedAt?.slice(0, 10) === todayKey)
             .map((task) => task.title)
             .join('\n')
@@ -60,15 +60,17 @@ export default function DailyReviewPage() {
             .filter((task) => !task.completed && !task.archived && task.dueDate === tomorrowKey)
             .map((task) => task.title)
             .join('\n')
+        const studyHours = Number((completedTodayTasks.reduce((total, task) => total + task.actualMinutes, 0) / 60).toFixed(1))
 
         setForm((current) => ({
             ...current,
             achievements: current.achievements || completedToday,
             missedTasks: current.missedTasks || missedTasks,
             tomorrowPriorities: current.tomorrowPriorities || tomorrowPriorities,
+            studyHours: current.studyHours || studyHours,
             careerScoreChange: current.careerScoreChange || metrics.careerScore,
         }))
-    }, [metrics.tasks, metrics.careerScore])
+    }, [metrics.tasks, metrics.careerScore, reviews])
 
     const saveReview = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
